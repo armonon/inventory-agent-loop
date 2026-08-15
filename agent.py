@@ -220,7 +220,9 @@ def tool_list_inventory() -> dict[str, Any]:
 
 
 def tool_find_product_by_name(name: str) -> dict[str, Any]:
-    return _request("GET", f"/inventory/by-name/{name}")
+    # Sent as a query param so names containing '/' (e.g. "Half/Half")
+    # survive; httpx handles the encoding.
+    return _request("GET", "/inventory/by-name", params={"name": name})
 
 
 def tool_add_product(name: str, quantity: float, unit: str) -> dict[str, Any]:

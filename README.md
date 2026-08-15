@@ -84,7 +84,11 @@ a single user turn.
 | `POST`  | `/inventory`                 | Add a product (`name`, `quantity`, `unit`). → `201`           |
 | `PATCH` | `/inventory/{product_id}`    | Apply a `delta` — positive = incoming, negative = outgoing.   |
 | `GET`   | `/inventory/alerts`          | Products below `threshold` (default `10`).                    |
-| `GET`   | `/inventory/by-name/{name}`  | Resolve a name → id, so the agent never guesses ids.          |
+| `GET`   | `/inventory/by-name?name=…`  | Resolve a name → id, so the agent never guesses ids.          |
+
+`by-name` takes the name as a **query** parameter rather than a path
+segment, so products whose names contain `/` — "Half/Half" is a real
+coffee-shop item — resolve correctly instead of hitting a routing 404.
 
 Error responses carry a descriptive message:
 
@@ -136,7 +140,7 @@ Each has a name, a description, and typed JSON-Schema parameters:
 | Tool                   | Calls                          | Typed parameters                    |
 | ---------------------- | ------------------------------ | ----------------------------------- |
 | `list_inventory`       | `GET /inventory`               | —                                   |
-| `find_product_by_name` | `GET /inventory/by-name/{name}`| `name: string`                      |
+| `find_product_by_name` | `GET /inventory/by-name`       | `name: string`                      |
 | `add_product`          | `POST /inventory`              | `name: string, quantity: number, unit: string` |
 | `update_stock`         | `PATCH /inventory/{id}`        | `product_id: integer, delta: number`|
 | `check_low_stock`      | `GET /inventory/alerts`        | `threshold: number` (optional)      |

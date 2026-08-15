@@ -68,14 +68,14 @@ def test_post_rejects_negative_quantity(client: TestClient) -> None:
 
 
 def test_patch_positive_delta_is_incoming_stock(client: TestClient) -> None:
-    before = client.get("/inventory/by-name/Oat milk").json()
+    before = client.get("/inventory/by-name", params={"name": "Oat milk"}).json()
     r = client.patch(f"/inventory/{before['id']}", json={"delta": 30})
     assert r.status_code == 200
     assert r.json()["quantity"] == before["quantity"] + 30
 
 
 def test_patch_negative_delta_is_outgoing_stock(client: TestClient) -> None:
-    before = client.get("/inventory/by-name/Arabica beans").json()
+    before = client.get("/inventory/by-name", params={"name": "Arabica beans"}).json()
     r = client.patch(f"/inventory/{before['id']}", json={"delta": -12})
     assert r.status_code == 200
     assert r.json()["quantity"] == before["quantity"] - 12
@@ -88,7 +88,7 @@ def test_patch_unknown_product_returns_404(client: TestClient) -> None:
 
 
 def test_patch_below_zero_returns_409_with_message(client: TestClient) -> None:
-    product = client.get("/inventory/by-name/Napkins").json()  # 5 packs
+    product = client.get("/inventory/by-name", params={"name": "Napkins"}).json()  # 5 packs
     r = client.patch(f"/inventory/{product['id']}", json={"delta": -100})
     assert r.status_code == 409
     detail = r.json()["detail"]
@@ -114,14 +114,32 @@ def test_alerts_threshold_is_configurable(client: TestClient) -> None:
 
 
 def test_by_name_lookup_is_case_insensitive(client: TestClient) -> None:
-    r = client.get("/inventory/by-name/oAt MiLk")
+    r = client.get("/inventory/by-name", params={"name": "oAt MiLk"})
     assert r.status_code == 200
     assert r.json()["name"] == "Oat milk"
 
 
-def test_by_name_unknown_returns_404(client: TestClient) -> None:
-    r = client.get("/inventory/by-name/Unobtainium")
+def test_by_name_unknown_returns_404_with_helpful_detail(client: TestClient) -> None:
+    r = client.get("/inventory/by-name", params={"name": "Unobtainium"})
     assert r.status_code == 404
+    # The message must steer the LLM toward a recovery action.
+    assert "list_inventory" in r.json()["detail"]
+
+
+def test_by_name_handles_slash_in_product_name(client: TestClient) -> None:
+    """Regression: 'Half/Half' used to hit FastAPI's routing 404 because
+    the name was a path segment. It is a query param now."""
+    client.post(
+        "/inventory", json={"name": "Half/Half", "quantity": 9, "unit": "liters"}
+    )
+    r = client.get("/inventory/by-name", params={"name": "Half/Half"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "Half/Half"
+
+
+def test_by_name_requires_a_name(client: TestClient) -> None:
+    r = client.get("/inventory/by-name")
+    assert r.status_code == 422
 
 
 def test_products_persist_to_csv_and_survive_reload(

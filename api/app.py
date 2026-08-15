@@ -149,12 +149,22 @@ def get_alerts(
     )
 
 
-@app.get("/inventory/by-name/{name}", response_model=ProductOut, tags=["inventory"])
-def get_by_name(name: str) -> ProductOut:
+@app.get("/inventory/by-name", response_model=ProductOut, tags=["inventory"])
+def get_by_name(
+    name: str = Query(
+        ...,
+        min_length=1,
+        description="Exact product name, case-insensitive. E.g. 'Oat milk'.",
+    ),
+) -> ProductOut:
     """Look a product up by name.
 
     Exists so the agent can resolve "oat milk" to an id without
     guessing — the LLM is given this as a tool.
+
+    `name` is a query parameter, not a path segment, so product names
+    containing '/' (e.g. "Half/Half") resolve correctly instead of
+    falling through to a routing 404.
     """
     product = storage.find_by_name(name)
     if product is None:
