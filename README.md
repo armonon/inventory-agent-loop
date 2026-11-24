@@ -1,6 +1,34 @@
 # Inventory Agent Loop
 
-An AI assistant for Carla's coffee-shop supply store. Two processes that
+An applied AI portfolio project that connects a bounded, hand-written Python
+tool loop to a FastAPI inventory service.
+
+## My contribution
+
+I implemented the inventory API, CSV storage, model tool definitions, agent
+loop, conversation logging, scripted demonstration, and tests. I also changed
+name lookup to a query parameter so product names containing slashes reach the
+correct route. This repository builds on a 4Geeks project brief; Carla and the
+coffee-shop supply store are the exercise scenario, not a claimed client.
+
+## Development status
+
+This is a local learning prototype. It supports inventory reads, product
+creation, stock changes, low-stock checks, and multi-step tool use. It uses CSV
+files and a process-local lock, not a transactional database or coordination
+across multiple server processes. Authentication, user permissions, and human
+approval before stock changes are not implemented.
+
+## Demo and screenshots
+
+A reproducible keyless demonstration is included in
+[`demo_session.py`](./demo_session.py). It runs the real loop and API calls with
+scripted model decisions. A live model run requires a Groq API key. No hosted
+demo or screenshots are included; use the CLI and local OpenAPI explorer below.
+
+## How it works
+
+An AI assistant for Carla's simulated coffee-shop supply store. Two processes that
 work together:
 
 1. **`api/app.py`** — a FastAPI service that manages inventory, persisted
@@ -18,7 +46,8 @@ She types `what's running low?` and gets a direct answer.
 
 ## Running it — you need two terminals
 
-The API must be running **before** the agent starts.
+Complete the first-time setup below before starting either process. The API
+must be running **before** the agent starts.
 
 ```bash
 # Terminal 1 — start the API
@@ -31,8 +60,8 @@ python agent.py
 ```
 
 **Stopping:** `Ctrl+C` in each terminal — stop the agent first, then the API.
-`conversation_log.csv` is written incrementally, so nothing is lost if you
-stop mid-session.
+`conversation_log.csv` is appended after each event; previously written events
+remain available after the session ends.
 
 **Relaunching:** run `python agent.py` again. The API does not need
 restarting. The new run starts a fresh in-memory history, but
@@ -41,9 +70,13 @@ appended.
 
 ### First-time setup
 
+Requires Python 3.11 or newer. Clone this repository, then run these commands
+from its root. Activate the same virtual environment in both terminals.
+
 ```bash
-uv add fastapi uvicorn openai python-dotenv
-# or: python -m venv .venv && source .venv/bin/activate && pip install -e .
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e . pytest
 ```
 
 Create `.env` in the repo root (copy `.env.example`):
@@ -69,6 +102,10 @@ you   > start stocking almond milk, we got 4 liters in, then tell me what's runn
 agent > Added almond milk at 4 liters. Running low right now: vanilla syrup
         (6 liters), napkins (5 packs) and the new almond milk (4 liters).
 ```
+
+The sample replies illustrate the seeded scenario; quantities vary with the
+current CSV data. The scripted demo also uses preset replies, so inspect API
+results or the CSV for the current stock after repeated runs.
 
 That last one is a **multi-step** turn: the model calls `add_product`, sees
 the result, then calls `check_low_stock` before answering — two tool calls in
@@ -162,7 +199,8 @@ Every event appends one row to `conversation_log.csv`:
 | `timestamp` | ISO-8601 UTC                                         |
 
 Opened in append mode on every write — previous sessions are never
-overwritten. A real two-session log is committed in this repo as evidence.
+overwritten. A two-session scripted demonstration log is committed in this repository;
+it is not evidence of live model decisions.
 
 Read it nicely:
 
@@ -174,16 +212,16 @@ column -s, -t conversation_log.csv | less -S
 
 ## Tests
 
-23 tests, no API key and no network required:
+The pytest suite runs without an API key or network:
 
 ```bash
 pytest
 ```
 
-- **`tests/test_api.py`** (14) — all endpoints, status codes, duplicate and
+- **`tests/test_api.py`** — all endpoints, status codes, duplicate and
   oversell rejection, threshold behaviour, and CSV persistence across a
   simulated restart.
-- **`tests/test_agent_loop.py`** (9) — the loop driven by a scripted fake
+- **`tests/test_agent_loop.py`** — the loop driven by a scripted fake
   LLM: tool results really get injected back into context, multi-step turns,
   clean termination, error handling, the runaway guard, all four log fields
   on every event, and append-only behaviour across sessions.
@@ -215,5 +253,6 @@ agent.py            tool definitions + the hand-coded agent loop + CLI
 demo_session.py     keyless end-to-end replay of the loop
 products.csv        inventory data (seeded, then mutated at runtime)
 conversation_log.csv append-only event log
-tests/              23 tests
+tests/              API and agent-loop tests
 ```
+
